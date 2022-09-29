@@ -1,3 +1,9 @@
+import java.time.LocalDate
+
+/**
+ * Более современный и продвинуты способ вызова плагинов это плагин DSL plugins{}
+ */
+
 plugins {
     id 'java'
 }
@@ -5,15 +11,132 @@ plugins {
 group 'org.lirik'
 version '1.0-SNAPSHOT'
 
+/**
+ * В контейнере repositories {} лежат репозитории, откуда мы будем брать наши зависимости
+ */
+
 repositories {
+    mavenLocal()   // эта команда ищет зависимость в ~/m2/repository на моей компе. Если не найдет, то пойдет в mavenCentral()
     mavenCentral()
+    maven {
+        name 'lirik'
+        url('https://drive.google.com/drive/folders/1R7qAOs-S-7RYw23ZNChwRoMoqt4wWpLT?usp=sharing') // здесь ищет какие-либо уникальные
+        // зависимости, т.е. репозиторий моей компании
+    }
 }
 
+/**
+ * В контейнере dependencies{} мы складываем все наши зависимости
+ */
+
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    // В строке ниже указано как подключать зависимость с помощью метода add()
+    // add('implementation', [group: "org.springframework", name: "spring-webmvc", version: "5.3.9"])
+    // В строке ниже указано как подключать зависимость с помощью метода add() более лаконично и проще
+    // add('implementation', "org.springframework:spring-webmvc:5.3.9")
+    implementation "org.springframework:spring-webmvc:5.3.9"   // САМЫЙ ЛУЧШИЙ СПОСОБ ОБЪЯВЛЯТЬ ЗАВИСИМОСТИ!!!
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.9.0') {
+        exclude(group: 'org.junit', module: 'junit-bom')
+    }
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+    compileOnly 'org.springframework.boot:spring-boot-dependencies:2.7.4'
 }
+
+/**
+ * Блок кода ниже нужен для конфигурирования файла MANIFEST.MF чтобы без проблем запустить jar-файл через терминал
+ * Строки ниже нужны для создания FAT-JAR
+ */
+
+//jar {
+//manifest {
+//    attributes 'Main-Class': 'com.lirik.HelloWorld'
+//}
+//    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+//    from (configurations.runtimeClasspath.files.collect {zipTree(it)})
+//}
+
+/**
+ * Блок кода ниже нужен для конфигурирования файла MANIFEST.MF чтобы без проблем запустить jar-файл через терминал
+ * и осуществления копирования jar-файлов в каталог lib
+ */
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.lirik.HelloWorld',
+                'Class-Path': configurations.runtimeClasspath.files.collect { "lib/$it.name" }.join(' ')
+    }
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+    from(configurations.runtimeClasspath.files.collect { zipTree(it) })
+}
+
+task copyAllDependencies(type: Copy) {
+    from(configurations.runtimeClasspath.files)
+    into("$buildDir/libs/lib")
+}
+jar.dependsOn copyAllDependencies
 
 test {
     useJUnitPlatform()
+}
+
+/**
+ * Контейнер sourceSets {} используется для для указания директорий в которых надо искать Java-классы. Например директории main и test
+ * там есть по умолчанию
+ */
+
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/generated-sources/querydsl"
+        }
+        resources {
+            srcDir "$buildDir/generated-sources/querydsl"
+        }
+    }
+}
+
+
+/**
+ * Блок extension (ext) используется для работы с property файлами. Здесь в closure (блок  фигурных скобок) мы устанавливаем необходимые
+ * поля. После того, как мы здесь установили нужные нам параметры, то мы уже можем к ним обратиться (например вызвать в println)
+ */
+
+ext {
+    javaVersion = 16
+    currentDate = LocalDate.now()
+}
+
+//println javaVersion
+//println ext.javaVersion
+//println project.ext.javaVersion
+
+/**
+ * таким образом мы можем вынести часть функционала в скрипт или класс. Ниже указан способ вызова плагинов, но этот способ является
+ * устаревшим!!!
+ */
+
+apply from: 'script.gradle'
+apply plugin: CustomPlugin
+
+class CustomPlugin implements Plugin<Project> {
+
+    @Override
+    void apply(Project project) {
+        def map = [description: "Hello task", group: "lirik", type: DefaultTask]
+        project.task(map, "hello") {
+            println "configuration phase. Task hello"
+
+            doLast {
+                println "execution phase, Action 1"
+            }
+            doFirst {
+                println "execution phase, Action 2"
+            }
+            doLast {
+                println "execution phase, Action 3"
+            }
+            println "task: $description, group: $group, ${actions.size()}"
+            println "path task: $path"
+        }
+    }
 }
