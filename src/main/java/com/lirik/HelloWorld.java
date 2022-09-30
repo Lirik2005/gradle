@@ -3,6 +3,7 @@ package com.lirik;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class HelloWorld {
@@ -17,7 +18,8 @@ public class HelloWorld {
 
         System.out.println(StringUtils.capitalize("hello world"));
 
-
+        String s = UUID.randomUUID().toString();
+        System.out.println(s);
     }
 
 
